@@ -10,7 +10,18 @@ const PORT = process.env.PORT || 4000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 // Middleware
-app.use(cors());
+// CORS configuration
+const allowedOrigins = [
+  'http://localhost:5173', // Vite dev server
+  process.env.FRONTEND_URL, // Production frontend (Netlify)
+].filter((origin): origin is string => Boolean(origin));
+
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // Health check route
