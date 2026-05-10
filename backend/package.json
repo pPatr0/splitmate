@@ -7,12 +7,16 @@
   "dev": "nodemon --watch src --ext ts --exec tsx src/index.ts",
   "build": "tsc",
   "start": "node dist/index.js",
-  "typecheck": "tsc --noEmit"
-},
+  "typecheck": "tsc --noEmit",
+  "lint": "eslint .",
+  "lint:fix": "eslint . --fix",
+  "format": "prettier --write \"src/**/*.{ts,js,json}\"",
+  "format:check": "prettier --check \"src/**/*.{ts,js,json}\""
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
@@ -20,11 +24,17 @@
     "mongoose": "^9.6.2"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^25.6.2",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.6.0",
     "nodemon": "^3.1.14",
+    "prettier": "^3.8.3",
     "tsx": "^4.21.0",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.2"
   }
 }
