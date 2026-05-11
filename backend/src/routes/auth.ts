@@ -3,6 +3,7 @@ import { User } from '../models/User.js';
 import { hashPassword, verifyPassword } from '../utils/password.js';
 import { signToken } from '../utils/jwt.js';
 import { registerSchema, loginSchema } from '../types/schemas.js';
+import { requireAuth } from '../middleware/requireAuth.js';
 
 const router = Router();
 
@@ -92,6 +93,31 @@ router.post('/login', async (req: Request, res: Response) => {
       user: user.toJSON(),
       token,
     });
+  } catch (error) {
+    return res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/auth/me
+ * Returns the currently authenticated user.
+ * Requires valid JWT in Authorization header.
+ */
+router.get('/me', requireAuth, async (req: Request, res: Response) => {
+  try {
+    // req.user is set by requireAuth middleware
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      // Token valid but user deleted from DB - rare edge case
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    return res.json({ user: user.toJSON() });
   } catch (error) {
     return res.status(500).json({ error: (error as Error).message });
   }
