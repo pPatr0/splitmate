@@ -1,12 +1,12 @@
+import './env.js';
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { User } from './models/User.js';
 import { Group } from './models/Group.js';
 import { Expense } from './models/Expense.js';
+import authRouter from './routes/auth.js';
 
-dotenv.config();
 
 const app: Express = express();
 const PORT = process.env.PORT || 4000;
@@ -26,6 +26,9 @@ app.use(
   })
 );
 app.use(express.json());
+
+// Mount auth routes
+app.use('/api/auth', authRouter);
 
 // Test endpoint: vytvoří dummy data a vrátí counts
 app.get('/api/debug/seed', async (_req: Request, res: Response) => {
