@@ -2,6 +2,9 @@ import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import { User } from './models/User.js';
+import { Group } from './models/Group.js';
+import { Expense } from './models/Expense.js';
 
 dotenv.config();
 
@@ -23,6 +26,26 @@ app.use(
   })
 );
 app.use(express.json());
+
+// Test endpoint: vytvoří dummy data a vrátí counts
+app.get('/api/debug/seed', async (_req: Request, res: Response) => {
+  try {
+    const userCount = await User.countDocuments();
+    const groupCount = await Group.countDocuments();
+    const expenseCount = await Expense.countDocuments();
+
+    res.json({
+      message: 'Database models are working',
+      counts: {
+        users: userCount,
+        groups: groupCount,
+        expenses: expenseCount,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
 
 // Health check route
 app.get('/api/health', (_req: Request, res: Response) => {
