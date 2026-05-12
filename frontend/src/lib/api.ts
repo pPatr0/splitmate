@@ -168,3 +168,81 @@ export async function getMe(): Promise<{ user: User }> {
 export function logout(): void {
   clearStoredToken();
 }
+
+// ============================================================================
+// Group types
+// ============================================================================
+
+export interface GroupMember {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  ownerId: string;
+  memberIds: string[] | GroupMember[]; // strings in list view, populated in detail
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ============================================================================
+// Group API functions
+// ============================================================================
+
+/**
+ * Create a new group. Current user becomes owner and first member.
+ */
+export async function createGroup(name: string): Promise<{ group: Group }> {
+  return apiRequest<{ group: Group }>('/api/groups', {
+    method: 'POST',
+    body: { name },
+    requiresAuth: true,
+  });
+}
+
+/**
+ * List all groups the current user is a member of.
+ * memberIds is array of string IDs.
+ */
+export async function listGroups(): Promise<{ groups: Group[] }> {
+  return apiRequest<{ groups: Group[] }>('/api/groups', {
+    requiresAuth: true,
+  });
+}
+
+/**
+ * Get group details with populated members.
+ * memberIds is array of GroupMember objects.
+ */
+export async function getGroup(groupId: string): Promise<{ group: Group }> {
+  return apiRequest<{ group: Group }>(`/api/groups/${groupId}`, {
+    requiresAuth: true,
+  });
+}
+
+/**
+ * Add a new member to the group by their email address.
+ */
+export async function addMember(
+  groupId: string,
+  email: string
+): Promise<{ group: Group }> {
+  return apiRequest<{ group: Group }>(`/api/groups/${groupId}/members`, {
+    method: 'POST',
+    body: { email },
+    requiresAuth: true,
+  });
+}
+
+/**
+ * Delete a group. Only the owner can delete.
+ */
+export async function deleteGroup(groupId: string): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}`, {
+    method: 'DELETE',
+    requiresAuth: true,
+  });
+}
