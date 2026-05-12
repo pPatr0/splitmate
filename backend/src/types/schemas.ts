@@ -23,3 +23,22 @@ export const loginSchema = z.object({
 // Inferred TypeScript types from Zod schemas
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+
+// ============================================================================
+// Group schemas
+// ============================================================================
+
+export const createGroupSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Group name cannot be empty')
+    .max(100, 'Group name too long'),
+});
+
+export const addMemberSchema = z.object({
+  email: z.string().trim().toLowerCase().email('Invalid email format'),
+});
+
+export type CreateGroupInput = z.infer<typeof createGroupSchema>;
+export type AddMemberInput = z.infer<typeof addMemberSchema>;
