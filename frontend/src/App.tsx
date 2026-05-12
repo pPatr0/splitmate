@@ -1,62 +1,75 @@
-import { useEffect, useState } from 'react';
-import { fetchHealth, type HealthResponse } from './lib/api';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/useAuth';
+import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
 
-function App() {
-  const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const { user, isLoading } = useAuth();
-
-  useEffect(() => {
-    fetchHealth()
-      .then((data) => {
-        setHealth(data);
-        setError(null);
-      })
-      .catch((err: Error) => {
-        setError(err.message);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, []);
+function HomePage() {
+  const { user, logout } = useAuth();
 
   return (
-    <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
-    <h1 className="text-4xl font-bold text-blue-600">SplitMate</h1>
-      <p>Expense splitter for friend groups</p>
-      <h2>Backend Connection Status</h2>
+    <div className="min-h-screen bg-gray-900 text-white p-8">
+      <div className="max-w-4xl mx-auto">
+        <header className="flex justify-between items-center mb-8">
+          <h1 className="text-4xl font-bold text-blue-500">SplitMate</h1>
+          <button
+            onClick={logout}
+            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-300 transition-colors"
+          >
+            Logout
+          </button>
+        </header>
 
-      {loading && <p>⏳ Connecting to backend...</p>}
+        <div className="bg-gray-800 rounded-lg p-6">
+          <h2 className="text-2xl font-bold mb-4">Welcome back, {user?.name}!</h2>
+          <p className="text-gray-400">
+            Your dashboard is coming soon. Groups and expenses will be here.
+          </p>
 
-      {error && (
-        <div style={{ color: 'red', padding: '1rem', border: '1px solid red' }}>
-          ❌ Error: {error}
+          <div className="mt-6 p-4 bg-gray-900 rounded">
+            <p className="text-sm text-gray-500">Logged in as:</p>
+            <p className="text-gray-300">{user?.email}</p>
+          </div>
         </div>
-      )}
-
-      {health && (
-        <div style={{ color: 'green', padding: '1rem', border: '1px solid green' }}>
-          ✅ Backend connected
-          <pre>{JSON.stringify(health, null, 2)}</pre>
-        </div>
-      )}
-      {/* Auth Context Debug - dočasné, později odstraníme */}
-        <div className="mt-8 p-4 border border-purple-500 rounded">
-          <h2 className="text-xl font-bold text-purple-400">Auth Context Debug</h2>
-          {isLoading && <p className="text-yellow-400">⏳ Loading session...</p>}
-          {!isLoading && !user && <p className="text-gray-400">Not authenticated</p>}
-          {!isLoading && user && (
-            <pre className="text-green-400">
-              Authenticated as: {JSON.stringify(user, null, 2)}
-            </pre>
-          )}
-        </div>
+      </div>
     </div>
   );
 }
 
+function AppRoutes() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <p className="text-gray-400">Loading...</p>
+      </div>
+    );
+  }
+
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={user ? <Navigate to="/" replace /> : <LoginPage />}
+      />
+      <Route
+        path="/register"
+        element={user ? <Navigate to="/" replace /> : <RegisterPage />}
+      />
+      <Route
+        path="/"
+        element={user ? <HomePage /> : <Navigate to="/login" replace />}
+      />
+    </Routes>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
+  );
+}
 
 export default App;
