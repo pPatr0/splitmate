@@ -131,7 +131,9 @@ router.post('/:id/members', async (req: Request, res: Response) => {
     group.memberIds.push(newMember._id);
     await group.save();
 
-    return res.status(201).json({ group: group.toJSON() });
+    // Re-fetch with populated members to match GET /:id shape
+    const populated = await Group.findById(group._id).populate('memberIds', 'name email');
+    return res.status(201).json({ group: populated!.toJSON() });
   } catch (error) {
     return res.status(500).json({ error: (error as Error).message });
   }
