@@ -42,3 +42,25 @@ export const addMemberSchema = z.object({
 
 export type CreateGroupInput = z.infer<typeof createGroupSchema>;
 export type AddMemberInput = z.infer<typeof addMemberSchema>;
+
+// ============================================================================
+// Expense schemas
+// ============================================================================
+
+export const createExpenseSchema = z.object({
+  description: z
+    .string()
+    .trim()
+    .min(1, 'Description cannot be empty')
+    .max(200, 'Description too long'),
+  amount: z
+    .number()
+    .positive('Amount must be positive')
+    .max(1000000, 'Amount too large'),
+  paidById: z.string().min(1, 'paidById is required'),
+  splitBetween: z
+    .array(z.string().min(1))
+    .min(1, 'Expense must be split between at least one person'),
+});
+
+export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
