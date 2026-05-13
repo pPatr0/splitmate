@@ -32,7 +32,7 @@ app.use(express.json());
 // Mount auth routes
 app.use('/api/auth', authRouter);
 app.use('/api/groups', groupsRouter);
-app.use('/api', expensesRouter);
+
 
 // Test endpoint: vytvoří dummy data a vrátí counts
 app.get('/api/debug/seed', async (_req: Request, res: Response) => {
@@ -57,7 +57,7 @@ app.get('/api/debug/seed', async (_req: Request, res: Response) => {
 // Health check route
 app.get('/api/health', (_req: Request, res: Response) => {
   const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
-  res.status(200).json({
+  res.json({
     status: 'ok',
     message: 'SplitMate backend is running',
     database: dbStatus,
