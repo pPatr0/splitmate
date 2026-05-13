@@ -4,11 +4,15 @@ import { useAuth } from '../context/useAuth';
 import {
   getGroup,
   deleteGroup,
+  listExpenses,
+  deleteExpense,
   ApiError,
   type Group,
   type GroupMember,
+  type Expense,
 } from '../lib/api';
 import { AddMemberModal } from '../components/AddMemberModal';
+import { AddExpenseModal } from '../components/AddExpenseModal';
 
 export function GroupDetailPage() {
   const { id: groupId } = useParams<{ id: string }>();
@@ -20,6 +24,10 @@ export function GroupDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [isExpensesLoading, setIsExpensesLoading] = useState(true);
+  const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
 
   useEffect(() => {
     if (!groupId) return;
@@ -51,6 +59,32 @@ export function GroupDetailPage() {
     };
   }, [groupId]);
 
+  // Fetch expenses for the group
+useEffect(() => {
+  if (!groupId) return;
+
+  let cancelled = false;
+
+  const fetchExpenses = async () => {
+    try {
+      const data = await listExpenses(groupId);
+      if (!cancelled) {
+        setExpenses(data.expenses);
+      }
+    } catch (err) {
+      // Expense errors are non-fatal - just log them
+      console.warn('Failed to load expenses:', err);
+    } finally {
+      if (!cancelled) setIsExpensesLoading(false);
+    }
+  };
+
+  fetchExpenses();
+  return () => {
+    cancelled = true;
+  };
+}, [groupId]);
+
   const handleDelete = async () => {
     if (!group) return;
     if (!confirm(`Delete group "${group.name}"? This action cannot be undone.`)) {
@@ -67,6 +101,29 @@ export function GroupDetailPage() {
       setIsDeleting(false);
     }
   };
+
+  const handleExpenseCreated = (newExpense: Expense) => {
+  setExpenses((prev) => [newExpense, ...prev]);
+};
+
+const handleDeleteExpense = async (expenseId: string) => {
+  if (!confirm('Delete this expense?')) return;
+
+  try {
+    await deleteExpense(expenseId);
+    setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
+  } catch (err) {
+    const message = err instanceof ApiError ? err.message : 'Failed to delete expense';
+    alert(message);
+  }
+};
+
+// Helper: get member name by ID (for display)
+const getMemberName = (memberId: string): string => {
+  const members = (group?.memberIds ?? []) as GroupMember[];
+  const member = members.find((m) => m.id === memberId);
+  return member?.name ?? 'Unknown';
+};
 
   const isOwner = group?.ownerId === user?.id;
 
@@ -175,15 +232,74 @@ export function GroupDetailPage() {
               </ul>
             </section>
 
-            {/* Expenses placeholder */}
+            {/* Expenses */}
             <section className="bg-gray-800 rounded-lg p-6">
-              <h2 className="text-xl font-bold mb-4">Expenses</h2>
-              <div className="text-center py-8">
-                <p className="text-gray-400 mb-2">No expenses yet</p>
-                <p className="text-sm text-gray-500">
-                  Expense tracking is coming soon. Stay tuned!
-                </p>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">
+                  Expenses ({expenses.length})
+                </h2>
+                <button
+                  onClick={() => setIsAddExpenseOpen(true)}
+                  className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+                >
+                  + Add expense
+                </button>
               </div>
+
+              {isExpensesLoading && (
+                <p className="text-gray-500 text-sm py-4">Loading expenses...</p>
+              )}
+
+              {!isExpensesLoading && expenses.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-gray-400 mb-2">No expenses yet</p>
+                  <p className="text-sm text-gray-500">
+                    Add your first expense to start tracking.
+                  </p>
+                </div>
+              )}
+
+              {!isExpensesLoading && expenses.length > 0 && (
+                <ul className="divide-y divide-gray-700">
+                  {expenses.map((expense) => {
+                    const canDelete =
+                      expense.paidById === user?.id || group.ownerId === user?.id;
+
+                    return (
+                      <li key={expense.id} className="py-3 flex justify-between items-start gap-4">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-white truncate">
+                            {expense.description}
+                          </p>
+                          <p className="text-sm text-gray-400 mt-0.5">
+                            Paid by <span className="text-gray-300">{getMemberName(expense.paidById)}</span>
+                            {' • '}
+                            Split between {expense.splitBetween.length}{' '}
+                            {expense.splitBetween.length === 1 ? 'person' : 'people'}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {new Date(expense.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <p className="text-lg font-semibold text-white whitespace-nowrap">
+                            {expense.amount.toFixed(2)}
+                          </p>
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDeleteExpense(expense.id)}
+                              className="text-red-400 hover:text-red-300 text-sm transition-colors"
+                              aria-label="Delete expense"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </section>
 
             {/* Add member modal */}
@@ -192,6 +308,15 @@ export function GroupDetailPage() {
               onClose={() => setIsAddMemberOpen(false)}
               groupId={group.id}
               onMemberAdded={(updatedGroup) => setGroup(updatedGroup)}
+            />
+            <AddExpenseModal
+              key={isAddExpenseOpen ? 'open' : 'closed'}
+              isOpen={isAddExpenseOpen}
+              onClose={() => setIsAddExpenseOpen(false)}
+              groupId={group.id}
+              members={members}
+              currentUserId={user?.id ?? ''}
+              onExpenseCreated={handleExpenseCreated}
             />
           </>
         )}
