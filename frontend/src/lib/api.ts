@@ -307,3 +307,31 @@ export async function deleteExpense(expenseId: string): Promise<void> {
     requiresAuth: true,
   });
 }
+
+// ============================================================================
+// Balance & Settlement types
+// ============================================================================
+
+export interface UserBalance {
+  userId: string;
+  balance: number;
+}
+
+export interface Transaction {
+  fromUserId: string;
+  toUserId: string;
+  amount: number;
+}
+
+// ============================================================================
+// Balance & Settlement API functions
+// ============================================================================
+
+export async function getSettle(
+  groupId: string
+): Promise<{ balances: UserBalance[]; transactions: Transaction[] }> {
+  return apiRequest<{ balances: UserBalance[]; transactions: Transaction[] }>(
+    `/api/groups/${groupId}/settle`,
+    { requiresAuth: true }
+  );
+}

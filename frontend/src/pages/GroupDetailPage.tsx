@@ -6,10 +6,13 @@ import {
   deleteGroup,
   listExpenses,
   deleteExpense,
+  getSettle,
   ApiError,
   type Group,
   type GroupMember,
   type Expense,
+  type UserBalance,
+  type Transaction,
 } from '../lib/api';
 import { AddMemberModal } from '../components/AddMemberModal';
 import { AddExpenseModal } from '../components/AddExpenseModal';
@@ -29,6 +32,10 @@ export function GroupDetailPage() {
   const [isExpensesLoading, setIsExpensesLoading] = useState(true);
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
 
+  const [balances, setBalances] = useState<UserBalance[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+
+  // Fetch group details
   useEffect(() => {
     if (!groupId) return;
 
@@ -60,30 +67,53 @@ export function GroupDetailPage() {
   }, [groupId]);
 
   // Fetch expenses for the group
-useEffect(() => {
-  if (!groupId) return;
+  useEffect(() => {
+    if (!groupId) return;
 
-  let cancelled = false;
+    let cancelled = false;
 
-  const fetchExpenses = async () => {
-    try {
-      const data = await listExpenses(groupId);
-      if (!cancelled) {
-        setExpenses(data.expenses);
+    const fetchExpenses = async () => {
+      try {
+        const data = await listExpenses(groupId);
+        if (!cancelled) {
+          setExpenses(data.expenses);
+        }
+      } catch (err) {
+        console.warn('Failed to load expenses:', err);
+      } finally {
+        if (!cancelled) setIsExpensesLoading(false);
       }
-    } catch (err) {
-      // Expense errors are non-fatal - just log them
-      console.warn('Failed to load expenses:', err);
-    } finally {
-      if (!cancelled) setIsExpensesLoading(false);
-    }
-  };
+    };
 
-  fetchExpenses();
-  return () => {
-    cancelled = true;
-  };
-}, [groupId]);
+    fetchExpenses();
+    return () => {
+      cancelled = true;
+    };
+  }, [groupId]);
+
+  // Fetch settle data
+  useEffect(() => {
+    if (!groupId) return;
+
+    let cancelled = false;
+
+    const fetchSettleData = async () => {
+      try {
+        const data = await getSettle(groupId);
+        if (!cancelled) {
+          setBalances(data.balances);
+          setTransactions(data.transactions);
+        }
+      } catch {
+        // Non-fatal
+      }
+    };
+
+    fetchSettleData();
+    return () => {
+      cancelled = true;
+    };
+  }, [groupId]);
 
   const handleDelete = async () => {
     if (!group) return;
@@ -102,33 +132,45 @@ useEffect(() => {
     }
   };
 
+  const fetchSettle = async () => {
+    if (!groupId) return;
+    try {
+      const data = await getSettle(groupId);
+      setBalances(data.balances);
+      setTransactions(data.transactions);
+    } catch {
+      // Non-fatal: settle data is supplementary
+    }
+  };
+
   const handleExpenseCreated = (newExpense: Expense) => {
-  setExpenses((prev) => [newExpense, ...prev]);
-};
+    setExpenses((prev) => [newExpense, ...prev]);
+    fetchSettle();
+  };
 
-const handleDeleteExpense = async (expenseId: string) => {
-  if (!confirm('Delete this expense?')) return;
+  const handleDeleteExpense = async (expenseId: string) => {
+    if (!confirm('Delete this expense?')) return;
 
-  try {
-    await deleteExpense(expenseId);
-    setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
-  } catch (err) {
-    const message = err instanceof ApiError ? err.message : 'Failed to delete expense';
-    alert(message);
-  }
-};
+    try {
+      await deleteExpense(expenseId);
+      setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
+      fetchSettle();
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Failed to delete expense';
+      alert(message);
+    }
+  };
 
-// Helper: get member name by ID (for display)
-const getMemberName = (memberId: string): string => {
-  const members = (group?.memberIds ?? []) as GroupMember[];
-  const member = members.find((m) => m.id === memberId);
-  return member?.name ?? 'Unknown';
-};
+  // Helper: get member name by ID
+  const getMemberName = (memberId: string): string => {
+    const memberList = (group?.memberIds ?? []) as GroupMember[];
+    const member = memberList.find((m) => m.id === memberId);
+    return member?.name ?? 'Unknown';
+  };
 
   const isOwner = group?.ownerId === user?.id;
-
-  // memberIds is GroupMember[] from populated detail endpoint
   const members = (group?.memberIds ?? []) as GroupMember[];
+
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Header */}
@@ -232,6 +274,70 @@ const getMemberName = (memberId: string): string => {
               </ul>
             </section>
 
+            {/* Balances */}
+            {balances.length > 0 && (
+              <section className="bg-gray-800 rounded-lg p-6 mb-6">
+                <h2 className="text-xl font-bold mb-4">Balances</h2>
+                <ul className="divide-y divide-gray-700">
+                  {balances.map((b) => (
+                    <li key={b.userId} className="py-2 flex justify-between items-center">
+                      <span className="text-gray-300">
+                        {getMemberName(b.userId)}
+                        {b.userId === user?.id && (
+                          <span className="text-gray-500 ml-1">(you)</span>
+                        )}
+                      </span>
+                      <span
+                        className={`font-semibold ${
+                          b.balance > 0
+                            ? 'text-green-400'
+                            : b.balance < 0
+                              ? 'text-red-400'
+                              : 'text-gray-400'
+                        }`}
+                      >
+                        {b.balance > 0 ? '+' : ''}
+                        {b.balance.toFixed(2)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {/* Settle Up */}
+            {transactions.length > 0 && (
+              <section className="bg-gray-800 rounded-lg p-6 mb-6">
+                <h2 className="text-xl font-bold mb-4">Settle Up</h2>
+                <p className="text-sm text-gray-500 mb-3">
+                  Minimum {transactions.length}{' '}
+                  {transactions.length === 1 ? 'transaction' : 'transactions'} to settle
+                  all debts:
+                </p>
+                <ul className="space-y-2">
+                  {transactions.map((t, i) => (
+                    <li
+                      key={i}
+                      className="bg-gray-900/50 rounded-lg px-4 py-3 flex justify-between items-center"
+                    >
+                      <span className="text-gray-300">
+                        <span className="text-white font-medium">
+                          {getMemberName(t.fromUserId)}
+                        </span>
+                        {' → '}
+                        <span className="text-white font-medium">
+                          {getMemberName(t.toUserId)}
+                        </span>
+                      </span>
+                      <span className="text-blue-400 font-semibold">
+                        {t.amount.toFixed(2)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
             {/* Expenses */}
             <section className="bg-gray-800 rounded-lg p-6">
               <div className="flex justify-between items-center mb-4">
@@ -272,7 +378,10 @@ const getMemberName = (memberId: string): string => {
                             {expense.description}
                           </p>
                           <p className="text-sm text-gray-400 mt-0.5">
-                            Paid by <span className="text-gray-300">{getMemberName(expense.paidById)}</span>
+                            Paid by{' '}
+                            <span className="text-gray-300">
+                              {getMemberName(expense.paidById)}
+                            </span>
                             {' • '}
                             Split between {expense.splitBetween.length}{' '}
                             {expense.splitBetween.length === 1 ? 'person' : 'people'}
@@ -302,13 +411,14 @@ const getMemberName = (memberId: string): string => {
               )}
             </section>
 
-            {/* Add member modal */}
+            {/* Modals */}
             <AddMemberModal
               isOpen={isAddMemberOpen}
               onClose={() => setIsAddMemberOpen(false)}
               groupId={group.id}
               onMemberAdded={(updatedGroup) => setGroup(updatedGroup)}
             />
+
             <AddExpenseModal
               key={isAddExpenseOpen ? 'open' : 'closed'}
               isOpen={isAddExpenseOpen}
