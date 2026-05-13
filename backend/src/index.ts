@@ -76,8 +76,9 @@ async function start() {
     await mongoose.connect(MONGODB_URI);
     console.log('✅ Connected to MongoDB Atlas');
 
-    app.listen(PORT, () => {
-      console.log(`🚀 Backend running on http://localhost:${PORT}`);
+    const HOST = '0.0.0.0';
+    app.listen(Number(PORT), HOST, () => {
+      console.log(`🚀 Backend running on http://${HOST}:${PORT}`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);
