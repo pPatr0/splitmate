@@ -3,6 +3,8 @@ import { Group } from '../models/Group.js';
 import { User } from '../models/User.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { createGroupSchema, addMemberSchema } from '../types/schemas.js';
+import { Expense } from '../models/Expense.js';
+import { computeBalances, simplifyDebts } from '../utils/debtSimplification.js';
 
 const router = Router();
 
@@ -159,6 +161,79 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     await group.deleteOne();
     return res.status(204).send();
+  } catch (error) {
+    return res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/groups/:id/balance
+ * Computes net balance per member from all group expenses.
+ */
+router.get('/:id/balance', async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const groupId = req.params.id as string;
+
+    const group = await Group.findById(groupId).populate('memberIds', 'name email');
+    if (!group) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    const isMember = group.memberIds.some(
+      (member) => member._id.toString() === userId
+    );
+    if (!isMember) {
+      return res.status(403).json({ error: 'You are not a member of this group' });
+    }
+
+    const expenses = await Expense.find({ groupId });
+    const balances = computeBalances(
+      expenses.map((e) => ({
+        paidById: e.paidById.toString(),
+        amount: e.amount,
+        splitBetween: e.splitBetween.map((id) => id.toString()),
+      }))
+    );
+
+    return res.json({ balances });
+  } catch (error) {
+    return res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/groups/:id/settle
+ * Returns minimal set of transactions to settle all debts.
+ */
+router.get('/:id/settle', async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const groupId = req.params.id as string;
+
+    const group = await Group.findById(groupId).populate('memberIds', 'name email');
+    if (!group) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    const isMember = group.memberIds.some(
+      (member) => member._id.toString() === userId
+    );
+    if (!isMember) {
+      return res.status(403).json({ error: 'You are not a member of this group' });
+    }
+
+    const expenses = await Expense.find({ groupId });
+    const balances = computeBalances(
+      expenses.map((e) => ({
+        paidById: e.paidById.toString(),
+        amount: e.amount,
+        splitBetween: e.splitBetween.map((id) => id.toString()),
+      }))
+    );
+    const transactions = simplifyDebts(balances);
+
+    return res.json({ balances, transactions });
   } catch (error) {
     return res.status(500).json({ error: (error as Error).message });
   }
