@@ -57,7 +57,7 @@ app.get('/api/debug/seed', async (_req: Request, res: Response) => {
 // Health check route
 app.get('/api/health', (_req: Request, res: Response) => {
   const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
-  res.json({
+  res.status(200).json({
     status: 'ok',
     message: 'SplitMate backend is running',
     database: dbStatus,
