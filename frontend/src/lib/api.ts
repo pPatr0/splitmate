@@ -246,3 +246,64 @@ export async function deleteGroup(groupId: string): Promise<void> {
     requiresAuth: true,
   });
 }
+
+// ============================================================================
+// Expense types
+// ============================================================================
+
+export interface Expense {
+  id: string;
+  groupId: string;
+  paidById: string;
+  amount: number;
+  description: string;
+  splitBetween: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateExpenseInput {
+  description: string;
+  amount: number;
+  paidById: string;
+  splitBetween: string[];
+}
+
+// ============================================================================
+// Expense API functions
+// ============================================================================
+
+/**
+ * Create a new expense in a group.
+ */
+export async function createExpense(
+  groupId: string,
+  input: CreateExpenseInput
+): Promise<{ expense: Expense }> {
+  return apiRequest<{ expense: Expense }>(`/api/groups/${groupId}/expenses`, {
+    method: 'POST',
+    body: input,
+    requiresAuth: true,
+  });
+}
+
+/**
+ * List all expenses in a group, sorted by newest first.
+ */
+export async function listExpenses(
+  groupId: string
+): Promise<{ expenses: Expense[] }> {
+  return apiRequest<{ expenses: Expense[] }>(`/api/groups/${groupId}/expenses`, {
+    requiresAuth: true,
+  });
+}
+
+/**
+ * Delete an expense. Only payer or group owner can delete.
+ */
+export async function deleteExpense(expenseId: string): Promise<void> {
+  await apiRequest<void>(`/api/expenses/${expenseId}`, {
+    method: 'DELETE',
+    requiresAuth: true,
+  });
+}
