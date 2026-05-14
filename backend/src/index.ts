@@ -32,7 +32,7 @@ app.use(express.json());
 // Mount auth routes
 app.use('/api/auth', authRouter);
 app.use('/api/groups', groupsRouter);
-app.use('/api/expenses', expensesRouter);
+app.use('/api', expensesRouter);
 
 
 // Test endpoint: vytvoří dummy data a vrátí counts
