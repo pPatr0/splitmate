@@ -152,7 +152,7 @@ export function GroupDetailPage() {
     if (!confirm('Delete this expense?')) return;
 
     try {
-      await deleteExpense(expenseId);
+      await deleteExpense(group!.id, expenseId);
       setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
       fetchSettle();
     } catch (err) {

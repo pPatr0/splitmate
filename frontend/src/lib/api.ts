@@ -280,7 +280,7 @@ export async function createExpense(
   groupId: string,
   input: CreateExpenseInput
 ): Promise<{ expense: Expense }> {
-  return apiRequest<{ expense: Expense }>(`/api/expenses/groups/${groupId}`, {
+  return apiRequest<{ expense: Expense }>(`/api/groups/${groupId}/expenses`, {
     method: 'POST',
     body: input,
     requiresAuth: true,
@@ -293,7 +293,7 @@ export async function createExpense(
 export async function listExpenses(
   groupId: string
 ): Promise<{ expenses: Expense[] }> {
-  return apiRequest<{ expenses: Expense[] }>(`/api/expenses/groups/${groupId}`, {
+  return apiRequest<{ expenses: Expense[] }>(`/api/groups/${groupId}/expenses`, {
     requiresAuth: true,
   });
 }
@@ -301,8 +301,8 @@ export async function listExpenses(
 /**
  * Delete an expense. Only payer or group owner can delete.
  */
-export async function deleteExpense(expenseId: string): Promise<void> {
-  await apiRequest<void>(`/api/expenses/${expenseId}`, {
+export async function deleteExpense(groupId: string, expenseId: string): Promise<void> {
+  await apiRequest<void>(`/api/groups/${groupId}/expenses/${expenseId}`, {
     method: 'DELETE',
     requiresAuth: true,
   });
