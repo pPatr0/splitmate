@@ -5,6 +5,8 @@ import { requireAuth } from '../middleware/requireAuth.js';
 import { createGroupSchema, addMemberSchema } from '../types/schemas.js';
 import { Expense } from '../models/Expense.js';
 import { computeBalances, simplifyDebts } from '../utils/debtSimplification.js';
+import { createExpenseSchema } from '../types/schemas.js';
+import { Types } from 'mongoose';
 
 const router = Router();
 
@@ -234,6 +236,121 @@ router.get('/:id/settle', async (req: Request, res: Response) => {
     const transactions = simplifyDebts(balances);
 
     return res.json({ balances, transactions });
+  } catch (error) {
+    return res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * POST /api/groups/:id/expenses
+ */
+router.post('/:id/expenses', async (req: Request, res: Response) => {
+  const parseResult = createExpenseSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    return res.status(400).json({
+      error: 'Validation failed',
+      details: parseResult.error.issues,
+    });
+  }
+
+  try {
+    const userId = req.user!.userId;
+    const groupId = req.params.id as string;
+
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    const isMember = group.memberIds.some((m) => m.toString() === userId);
+    if (!isMember) {
+      return res.status(403).json({ error: 'You are not a member of this group' });
+    }
+
+    const { description, amount, paidById, splitBetween } = parseResult.data;
+
+    const paidByIsMember = group.memberIds.some((m) => m.toString() === paidById);
+    if (!paidByIsMember) {
+      return res.status(400).json({ error: 'paidById must be a group member' });
+    }
+
+    const memberSet = new Set(group.memberIds.map((m) => m.toString()));
+    const allSplitMembersValid = splitBetween.every((id) => memberSet.has(id));
+    if (!allSplitMembersValid) {
+      return res.status(400).json({ error: 'splitBetween contains non-members' });
+    }
+
+    const expense = await Expense.create({
+      groupId: group._id,
+      paidById,
+      amount,
+      description,
+      splitBetween,
+    });
+
+    return res.status(201).json({ expense: expense.toJSON() });
+  } catch (error) {
+    return res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/groups/:id/expenses
+ */
+router.get('/:id/expenses', async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const groupId = req.params.id as string;
+
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    const isMember = group.memberIds.some((m) => m.toString() === userId);
+    if (!isMember) {
+      return res.status(403).json({ error: 'You are not a member of this group' });
+    }
+
+    const expenses = await Expense.find({ groupId }).sort({ createdAt: -1 });
+    return res.json({ expenses: expenses.map((e) => e.toJSON()) });
+  } catch (error) {
+    return res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * DELETE /api/groups/:groupId/expenses/:expenseId
+ */
+router.delete('/:groupId/expenses/:expenseId', async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const expenseId = req.params.expenseId as string;
+
+    if (!Types.ObjectId.isValid(expenseId)) {
+      return res.status(400).json({ error: 'Invalid expense ID' });
+    }
+
+    const expense = await Expense.findById(expenseId);
+    if (!expense) {
+      return res.status(404).json({ error: 'Expense not found' });
+    }
+
+    const group = await Group.findById(expense.groupId);
+    if (!group) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    const isPayer = expense.paidById.toString() === userId;
+    const isOwner = group.ownerId.toString() === userId;
+    if (!isPayer && !isOwner) {
+      return res.status(403).json({
+        error: 'Only the payer or group owner can delete this expense',
+      });
+    }
+
+    await expense.deleteOne();
+    return res.status(204).send();
   } catch (error) {
     return res.status(500).json({ error: (error as Error).message });
   }

@@ -52,7 +52,7 @@ async function assertGroupMember(
  * Adds a new expense to a group.
  * Body: { description, amount, paidById, splitBetween[] }
  */
-router.post('/groups/:groupId', async (req: Request, res: Response) => {
+router.post('/groups/:groupId/expenses', async (req: Request, res: Response) => {
   const parseResult = createExpenseSchema.safeParse(req.body);
   if (!parseResult.success) {
     return res.status(400).json({
@@ -106,7 +106,7 @@ router.post('/groups/:groupId', async (req: Request, res: Response) => {
  * GET /api/groups/:groupId/expenses
  * Lists all expenses in a group, sorted by newest first.
  */
-router.get('/groups/:groupId', async (req: Request, res: Response) => {
+router.get('/groups/:groupId/expenses', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.userId;
     const groupId = req.params.groupId as string;
@@ -127,7 +127,7 @@ router.get('/groups/:groupId', async (req: Request, res: Response) => {
  * DELETE /api/expenses/:id
  * Deletes an expense. Only the payer OR the group owner can delete.
  */
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/expenses/:id', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.userId;
     const expenseId = req.params.id as string;

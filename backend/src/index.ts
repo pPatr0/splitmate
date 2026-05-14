@@ -7,7 +7,6 @@ import { Group } from './models/Group.js';
 import { Expense } from './models/Expense.js';
 import authRouter from './routes/auth.js';
 import groupsRouter from './routes/groups.js';
-import expensesRouter from './routes/expenses.js';
 
 
 const app: Express = express();
@@ -32,8 +31,6 @@ app.use(express.json());
 // Mount auth routes
 app.use('/api/auth', authRouter);
 app.use('/api/groups', groupsRouter);
-app.use('/api', expensesRouter);
-
 
 // Test endpoint: vytvoří dummy data a vrátí counts
 app.get('/api/debug/seed', async (_req: Request, res: Response) => {
