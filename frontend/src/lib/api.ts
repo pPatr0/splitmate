@@ -280,7 +280,7 @@ export async function createExpense(
   groupId: string,
   input: CreateExpenseInput
 ): Promise<{ expense: Expense }> {
-  return apiRequest<{ expense: Expense }>(`/api/groups/${groupId}/expenses`, {
+  return apiRequest<{ expense: Expense }>(`/api/expenses/groups/${groupId}`, {
     method: 'POST',
     body: input,
     requiresAuth: true,
@@ -293,7 +293,7 @@ export async function createExpense(
 export async function listExpenses(
   groupId: string
 ): Promise<{ expenses: Expense[] }> {
-  return apiRequest<{ expenses: Expense[] }>(`/api/groups/${groupId}/expenses`, {
+  return apiRequest<{ expenses: Expense[] }>(`/api/expenses/groups/${groupId}`, {
     requiresAuth: true,
   });
 }
